@@ -5,16 +5,16 @@ import 'package:oauth2_client/access_token_response.dart';
 import 'package:oauth2_client/authorization_response.dart';
 import 'package:oauth2_client/oauth2_response.dart';
 import 'package:oauth2_client/src/oauth2_utils.dart';
+import 'package:random_string/random_string.dart';
+
 // import 'package:oauth2_client/src/web_auth.dart';
 
 import 'src/base_web_auth.dart';
 import 'src/web_auth.dart'
-    // ignore: uri_does_not_exist
+// ignore: uri_does_not_exist
     if (dart.library.io) 'src/io_web_auth.dart'
-    // ignore: uri_does_not_exist
+// ignore: uri_does_not_exist
     if (dart.library.html) 'src/browser_web_auth.dart';
-
-import 'package:random_string/random_string.dart';
 
 enum CredentialsLocation { HEADER, BODY }
 
@@ -97,18 +97,14 @@ class OAuth2Client {
 
     // Present the dialog to the user
     final result = await webAuthClient.authenticate(
-        url: authorizeUrl,
-        callbackUrlScheme: customUriScheme,
-        redirectUrl: redirectUri,
-        opts: webAuthOpts);
+        url: authorizeUrl, callbackUrlScheme: customUriScheme, redirectUrl: redirectUri, opts: webAuthOpts);
 
     final fragment = Uri.splitQueryString(Uri.parse(result).fragment);
 
     if (enableState) {
       final checkState = fragment['state'];
       if (state != checkState) {
-        throw Exception(
-            '"state" parameter in response doesn\'t correspond to the expected value');
+        throw Exception('"state" parameter in response doesn\'t correspond to the expected value');
       }
     }
 
@@ -178,10 +174,7 @@ class OAuth2Client {
 
   /// Requests an Access Token to the OAuth2 endpoint using the Client Credentials flow.
   Future<AccessTokenResponse> getTokenWithClientCredentialsFlow(
-      {required String clientId,
-      required String clientSecret,
-      List<String>? scopes,
-      httpClient}) async {
+      {required String clientId, required String clientSecret, List<String>? scopes, httpClient}) async {
     var params = <String, String>{'grant_type': 'client_credentials'};
 
     if (scopes != null && scopes.isNotEmpty) {
@@ -189,11 +182,7 @@ class OAuth2Client {
     }
 
     var response = await _performAuthorizedRequest(
-        url: tokenUrl,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        params: params,
-        httpClient: httpClient);
+        url: tokenUrl, clientId: clientId, clientSecret: clientSecret, params: params, httpClient: httpClient);
 
     return http2TokenResponse(response, requestedScopes: scopes);
   }
@@ -225,10 +214,7 @@ class OAuth2Client {
 
     // Present the dialog to the user
     final result = await webAuthClient.authenticate(
-        url: authorizeUrl,
-        callbackUrlScheme: customUriScheme,
-        redirectUrl: redirectUri,
-        opts: webAuthOpts);
+        url: authorizeUrl, callbackUrlScheme: customUriScheme, redirectUrl: redirectUri, opts: webAuthOpts);
 
     return AuthorizationResponse.fromRedirectUri(result, state);
   }
@@ -242,11 +228,8 @@ class OAuth2Client {
       List<String>? scopes,
       Map<String, dynamic>? customParams,
       httpClient}) async {
-    final params = getTokenUrlParams(
-        code: code,
-        redirectUri: redirectUri,
-        codeVerifier: codeVerifier,
-        customParams: customParams);
+    final params =
+        getTokenUrlParams(code: code, redirectUri: redirectUri, codeVerifier: codeVerifier, customParams: customParams);
 
     var response = await _performAuthorizedRequest(
         url: tokenUrl,
@@ -264,12 +247,9 @@ class OAuth2Client {
       {httpClient, required String clientId, String? clientSecret}) async {
     final Map params = getRefreshUrlParams(refreshToken: refreshToken);
 
+    print('*** client refreshToken');
     var response = await _performAuthorizedRequest(
-        url: _getRefreshUrl(),
-        clientId: clientId,
-        clientSecret: clientSecret,
-        params: params,
-        httpClient: httpClient);
+        url: _getRefreshUrl(), clientId: clientId, clientSecret: clientSecret, params: params, httpClient: httpClient);
 
     return http2TokenResponse(response);
   }
@@ -277,13 +257,11 @@ class OAuth2Client {
   /// Revokes both the Access and the Refresh tokens in the provided [tknResp]
   Future<OAuth2Response> revokeToken(AccessTokenResponse tknResp,
       {String? clientId, String? clientSecret, httpClient}) async {
-    var tokenRevocationResp = await revokeAccessToken(tknResp,
-        clientId: clientId, clientSecret: clientSecret, httpClient: httpClient);
+    var tokenRevocationResp =
+        await revokeAccessToken(tknResp, clientId: clientId, clientSecret: clientSecret, httpClient: httpClient);
     if (tokenRevocationResp.isValid()) {
-      tokenRevocationResp = await revokeRefreshToken(tknResp,
-          clientId: clientId,
-          clientSecret: clientSecret,
-          httpClient: httpClient);
+      tokenRevocationResp =
+          await revokeRefreshToken(tknResp, clientId: clientId, clientSecret: clientSecret, httpClient: httpClient);
     }
 
     return tokenRevocationResp;
@@ -313,10 +291,7 @@ class OAuth2Client {
       String? state,
       String? codeChallenge,
       Map<String, dynamic>? customParams}) {
-    final params = <String, dynamic>{
-      'response_type': responseType,
-      'client_id': clientId
-    };
+    final params = <String, dynamic>{'response_type': responseType, 'client_id': clientId};
 
     if (redirectUri != null && redirectUri.isNotEmpty) {
       params['redirect_uri'] = redirectUri;
@@ -344,14 +319,8 @@ class OAuth2Client {
 
   /// Returns the parameters needed for the authorization code request
   Map<String, dynamic> getTokenUrlParams(
-      {required String code,
-      String? redirectUri,
-      String? codeVerifier,
-      Map<String, dynamic>? customParams}) {
-    final params = <String, dynamic>{
-      'grant_type': 'authorization_code',
-      'code': code
-    };
+      {required String code, String? redirectUri, String? codeVerifier, Map<String, dynamic>? customParams}) {
+    final params = <String, dynamic>{'grant_type': 'authorization_code', 'code': code};
 
     if (redirectUri != null && redirectUri.isNotEmpty) {
       params['redirect_uri'] = redirectUri;
@@ -382,6 +351,7 @@ class OAuth2Client {
   Future<http.Response> _performAuthorizedRequest(
       {required String url,
       required String clientId,
+      retries = 0,
       String? clientSecret,
       Map? params,
       Map<String, String>? headers,
@@ -390,6 +360,8 @@ class OAuth2Client {
 
     headers ??= {};
     params ??= {};
+
+    print('*** client _performAuthorizedRequest');
 
     //If a client secret has been specified, it will be sent in the "Authorization" header instead of a body parameter...
     if (clientSecret == null) {
@@ -411,19 +383,52 @@ class OAuth2Client {
       }
     }
 
-    var response =
-        await httpClient.post(Uri.parse(url), body: params, headers: headers);
+    print('PARAMS: ');
+    params.forEach((key, value) {
+      print('key: $key value: $value');
+    });
+
+    print('\nHEADERS: ');
+    headers.forEach((key, value) {
+      print('key: $key value: $value');
+    });
+
+    print(' calling httpClient.post ' + Uri.parse(url).toString());
+    var response = await httpClient.post(Uri.parse(url), body: params, headers: headers);
+
+    // fix keycloak di merda
+    if (response.statusCode == 500) {
+      print('keycloak merda');
+
+      if (KeyCloakRetryControl.retryCount > KeyCloakRetryControl.MAX_RETRY) {
+        KeyCloakRetryControl.retryCount = 0;
+        // triggero 500 e amen, non so che fare
+      } else {
+        KeyCloakRetryControl.retryCount++;
+        print('Retrying ${KeyCloakRetryControl.retryCount.toString()} / ${KeyCloakRetryControl.MAX_RETRY.toString()}');
+
+        response = await _performAuthorizedRequest(
+            url: url,
+            clientId: clientId,
+            clientSecret: clientSecret,
+            params: params,
+            headers: headers,
+            httpClient: httpClient);
+
+        //await httpClient.post(Uri.parse(url), body: params, headers: headers);
+      }
+    } else {
+      KeyCloakRetryControl.retryCount = 0;
+    }
 
     return response;
   }
 
-  Map<String, String> getAuthorizationHeader(
-      {required String clientId, String? clientSecret}) {
+  Map<String, String> getAuthorizationHeader({required String clientId, String? clientSecret}) {
     var headers = <String, String>{};
 
     if ((clientId.isNotEmpty) && (clientSecret != null)) {
-      var credentials =
-          base64.encode(utf8.encode(clientId + ':' + clientSecret));
+      var credentials = base64.encode(utf8.encode(clientId + ':' + clientSecret));
 
       headers['Authorization'] = 'Basic ' + credentials;
     }
@@ -433,18 +438,13 @@ class OAuth2Client {
 
   /// Returns the parameters needed for the refresh token request
   Map<String, String> getRefreshUrlParams({required String refreshToken}) {
-    final params = <String, String>{
-      'grant_type': 'refresh_token',
-      'refresh_token': refreshToken
-    };
+    final params = <String, String>{'grant_type': 'refresh_token', 'refresh_token': refreshToken};
 
     return params;
   }
 
-  AccessTokenResponse http2TokenResponse(http.Response response,
-      {List<String>? requestedScopes}) {
-    return AccessTokenResponse.fromHttpResponse(response,
-        requestedScopes: requestedScopes);
+  AccessTokenResponse http2TokenResponse(http.Response response, {List<String>? requestedScopes}) {
+    return AccessTokenResponse.fromHttpResponse(response, requestedScopes: requestedScopes);
   }
 
   String serializeScopes(List<String> scopes) {
@@ -452,8 +452,7 @@ class OAuth2Client {
   }
 
   /// Revokes the specified token [type] in the [tknResp]
-  Future<OAuth2Response> _revokeTokenByType(
-      AccessTokenResponse tknResp, String tokenType,
+  Future<OAuth2Response> _revokeTokenByType(AccessTokenResponse tknResp, String tokenType,
       {String? clientId, String? clientSecret, httpClient}) async {
     var resp = OAuth2Response();
 
@@ -461,9 +460,7 @@ class OAuth2Client {
 
     httpClient ??= http.Client();
 
-    var token = tokenType == 'access_token'
-        ? tknResp.accessToken
-        : tknResp.refreshToken;
+    var token = tokenType == 'access_token' ? tknResp.accessToken : tknResp.refreshToken;
 
     if (token != null) {
       var params = {'token': token, 'token_type_hint': tokenType};
@@ -471,8 +468,7 @@ class OAuth2Client {
       if (clientId != null) params['client_id'] = clientId;
       if (clientSecret != null) params['client_secret'] = clientSecret;
 
-      http.Response response =
-          await httpClient.post(Uri.parse(revokeUrl!), body: params);
+      http.Response response = await httpClient.post(Uri.parse(revokeUrl!), body: params);
 
       resp = http2TokenResponse(response);
     }
@@ -487,4 +483,9 @@ class OAuth2Client {
   set accessTokenRequestHeaders(Map<String, String> headers) {
     _accessTokenRequestHeaders = headers;
   }
+}
+
+class KeyCloakRetryControl {
+  static int retryCount = 0;
+  static int MAX_RETRY = 3;
 }
